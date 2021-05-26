@@ -1,6 +1,6 @@
 <launch>
 
-    <include file="$(find aibot_hw)/launch/aibot_base_a1.launch" />
+    <include file="$(find aibot_hw)/launch/aibot_a1_chassis_hw.launch" />
 
     <!-- Map server -->
     <arg name="map_file" default="$(find navigation_demo)/maps/map_office_arm_demo.yaml"/>
@@ -48,10 +48,8 @@
         <rosparam file="$(find navigation_demo)/param/navigation/move_base_params.yaml" command="load" />
     </node>
 
-    <!-- TF base_link to laser 根据激光雷达安装位置方向确定 -->
-    <!-- <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser" args="0.04932 0 0 3.14 0 0  /base_link /laser 100"/> -->
-
     <!-- rviz -->
+    <!--
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find navigation_demo)/rviz/navigation.rviz" />
-
+    -->
 </launch>
