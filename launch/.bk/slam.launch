@@ -1,6 +1,4 @@
 <launch>
-
-    <include file="$(find aibot_hw)/launch/aibot_mini_chassis_hw.launch" />
     <!-- Mapping package -->
     <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
         <param name="base_frame" value="/base_footprint" />
@@ -38,6 +36,13 @@
         <param name="transform_publish_period" value="0.1"/>
     </node>
 
+    <!-- TF -->
+    <param name="robot_description" command="$(find xacro)/xacro.py $(find aibot_description)/urdf/aibot_car.urdf.xacro" />
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+        <param name="publish_frequency" type="double" value="100.0" />
+    </node>
     <!-- rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find navigation_demo)/rviz/slam.rviz" />
+
 </launch>

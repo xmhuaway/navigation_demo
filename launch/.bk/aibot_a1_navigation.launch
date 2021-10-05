@@ -1,9 +1,9 @@
 <launch>
 
-    <include file="$(find aibot_hw)/launch/myagv_chassis_hw.launch" />
+    <include file="$(find aibot_hw)/launch/aibot_a1_chassis_hw.launch" />
 
     <!-- Map server -->
-    <arg name="map_file" default="$(find navigation_demo)/maps/map_office_arm_demo.yaml"/>
+    <arg name="map_file" default="$(find navigation_demo)/maps/a1.yaml"/>
     <node pkg="map_server" name="map_server"  type="map_server" args="$(arg map_file)" />
 
     <!-- amcl -->
@@ -49,7 +49,6 @@
     </node>
 
     <!-- rviz -->
-    <!--
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find navigation_demo)/rviz/navigation.rviz" />
-    -->
+    
 </launch>
