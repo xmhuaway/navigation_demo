@@ -1,0 +1,200 @@
+<launch>
+
+    <master auto="start"/>
+
+    <include file="$(find multi_map_navigation)/launch/setup/mongodb_server.launch">
+        <arg name="host" value="localhost"/>
+        <arg name="port" value="27017"/>
+        <arg name="db_overwrite" value="false"/>
+        <arg name="db_location" value="~/Documents/map_store"/>
+    </include>
+
+    <group ns = "robot0">
+
+        <arg name="modelName" value="robot0"/>
+        <arg name="tf_prefix" value="$(arg modelName)" />
+
+        <arg name="odom_frame_id" default="$(arg tf_prefix)/odom"/>
+        <arg name="base_frame_id" default="$(arg tf_prefix)/base_link"/>
+
+        <!-- <include file="$(find aibot_hw)/launch/chassis_hw.launch" >
+            <arg name="laser_frame" value="$(arg tf_prefix)/laser" />
+        </include> -->
+
+
+        <!-- ============================== This it the loading of the robot =====================================  -->
+
+        <!-- Robot Base Aibot Version 1 Description -->
+        <param name="robot_description" command="xacro $(find aibot_description)/urdf/chassis/$(env AIBOT_BASE)/chassis.urdf.xacro" />
+        <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+            <param name="publish_frequency" type="double" value="100.0" />
+            <param name="tf_prefix" value="robot0" />
+        </node>
+
+        <!-- Start ROS communication between the robot's computer and aibot base -->
+        <node pkg="rosserial_python" name="rosserial_aibot" type="serial_node.py" output="screen">
+            <param name="port" value="/dev/linobase" />
+            <param name="baud" value="57600" />
+        </node>
+
+        <!-- IMU Relay and Filter -->
+        <include file="$(find aibot_hw)/launch/include/imu/imu.launch" />
+
+        <!-- Publish aibot odometry -->
+        <node pkg="aibot_hw" name="aibot_hw_node" type="aibot_hw_node"></node>
+
+        <!-- Odom-IMU Extended Kalman Filter-->
+        <arg name="ekf_raw_odom" default="raw_odom"/>
+        <arg name="ekf_raw_imu" default="imu/data"/>
+        <arg name="ekf_odom_frame" default="robot0/odom"/>
+        <arg name="ekf_base_link_frame" default="robot0/base_link"/>
+        <arg name="ekf_world_frame" default="robot0/odom"/>
+
+        <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization"> 
+            <remap from="odometry/filtered" to="odom" />
+            <rosparam command="load" file="$(find aibot_hw)/param/ekf/robot_localization.yaml" />
+            <param name="odom0" value="$(arg ekf_raw_odom)" />
+            <param name="imu0" value="$(arg ekf_raw_imu)" />
+            <param name="odom_frame" value="$(arg ekf_odom_frame)" />
+            <param name="base_link_frame" value="$(arg ekf_base_link_frame)" />
+            <param name="world_frame" value="$(arg ekf_world_frame)" />
+        </node>
+
+        <arg name="laser_frame" default="robot0/laser"/>
+        <node name="ydlidar_node"  pkg="ydlidar_ros"  type="ydlidar_node" output="screen" respawn="false" >
+            <param name="port"         type="string" value="/dev/ydlidar"/>  
+            <param name="baudrate"         type="int" value="115200"/>  
+            <param name="frame_id"     type="string" value="$(arg laser_frame)"/>
+            <param name="resolution_fixed"    type="bool"   value="true"/>
+            <param name="auto_reconnect"    type="bool"   value="true"/>
+            <param name="reversion"    type="bool"   value="false"/>
+            <param name="angle_min"    type="double" value="-180" />
+            <param name="angle_max"    type="double" value="180" />
+            <param name="range_min"    type="double" value="0.1" />
+            <param name="range_max"    type="double" value="12.0" />
+            <param name="ignore_array" type="string" value="" />
+            <param name="frequency"    type="double" value="8"/>
+            <param name="samp_rate"    type="int"    value="3"/>
+            <param name="isSingleChannel"    type="bool"   value="true"/>
+        </node>
+
+        <!-- ============================== This it the loading of the robot =====================================  -->
+
+        <!-- Launch map_store with MongoDB contents -->
+        <include file="$(find multi_map_navigation)/launch/setup/map_store.launch" >
+            <param name="frame_id_ref" value="$(arg modelName)/map_store_map" />
+        </include>
+
+        <!-- amcl -->
+        <node pkg="amcl" type="amcl" name="amcl" output="screen">
+            <!-- <remap from="map" to="robot0/map_store_map"/> -->
+            <param name="base_frame_id" value="robot0/base_link"/>
+            <param name="odom_frame_id" value="robot0/odom"/>
+            <param name="global_frame_id" value="robot0/map_store_map" />
+            <param name="use_map_topic" value="true" />
+            <param name="gui_publish_rate" value="10.0"/>
+            <param name="kld_err" value="0.05"/>
+            <param name="kld_z" value="0.99"/>
+            <param name="laser_lambda_short" value="0.1"/>
+            <param name="laser_likelihood_max_dist" value="2.0"/>
+            <param name="laser_max_beams" value="60"/>
+            <param name="laser_model_type" value="likelihood_field"/>
+            <param name="laser_sigma_hit" value="0.2"/>
+            <param name="laser_z_hit" value="0.5"/>
+            <param name="laser_z_short" value="0.05"/>
+            <param name="laser_z_max" value="0.05"/>
+            <param name="laser_z_rand" value="0.5"/>
+            <param name="max_particles" value="2000"/>
+            <param name="min_particles" value="500"/>
+            <param name="odom_alpha1" value="0.25"/>
+            <param name="odom_alpha2" value="0.25"/>
+            <param name="odom_alpha3" value="0.25"/>
+            <param name="odom_alpha4" value="0.25"/>
+            <param name="odom_alpha5" value="0.1"/>
+            <param name="odom_model_type" value="omni"/>
+            <param name="recovery_alpha_slow" value="0.001"/>
+            <param name="recovery_alpha_fast" value="0.1"/>
+            <param name="resample_interval" value="1"/>
+            <param name="transform_tolerance" value="1.25"/>
+            <param name="update_min_a" value="0.2"/>
+            <param name="update_min_d" value="0.2"/>
+        </node>
+
+        <!-- Launch elevator manager -->
+        <node pkg="multi_map_navigation" type="elevator_manager.py" name="elevator_blast" output="screen"/>
+
+        <!-- move_base -->
+        <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+            <remap from="map" to="map_store_map"/>
+            <rosparam file="$(find navigation_demo)/param/navigation/costmap_common_params.yaml" command="load" ns="global_costmap" />
+            <rosparam file="$(find navigation_demo)/param/navigation/costmap_common_params.yaml" command="load" ns="local_costmap" />
+            <rosparam file="$(find navigation_demo)/param/navigation/local_costmap_params.yaml" command="load" />
+            <rosparam file="$(find navigation_demo)/param/navigation/global_costmap_params.yaml" command="load" />
+            <rosparam file="$(find navigation_demo)/param/navigation/base_local_planner_default_params.yaml" command="load" />
+            <rosparam file="$(find navigation_demo)/param/navigation/move_base_params.yaml" command="load" />
+
+            <param name="global_costmap/global_frame" value="robot0/map_store_map"/>
+            <param name="global_costmap/robot_base_frame" value="$(arg base_frame_id)" />
+            <param name="local_costmap/global_frame" value="robot0/odom"/>
+            <param name="local_costmap/robot_base_frame" value="$(arg base_frame_id)" />
+        </node>
+
+        <!-- Multi-Map Navigation -->
+        <node pkg="multi_map_navigation" type="multi_map_navigation_manager.py" name="multi_map_navigation" output="screen">
+            <param name="definition_file" value="$(find navigation_demo)/param/multi_map/cfg.yaml" />
+            <param name="transition_types" value="elevator_blast" />
+
+            <param name="robot_namespace" value="$(arg modelName)"/>
+            <param name="base_frame" value="base_link"/>
+        </node>
+
+        <!-- rviz -->
+        <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find navigation_demo)/rviz/navigation.rviz" /> -->
+
+    </group>
+
+    <!-- Setup RVIZ Mux: -->
+    <node name="namespace_mux" pkg="namespace_mux" type="namespace_mux" output="screen">
+
+        <rosparam param="/namespace_mux/robot_namespace_ref">"robot"</rosparam>
+        <rosparam param="/namespace_mux/rviz_namespace">"rviz"</rosparam>
+
+        <rosparam param="/namespace_mux/active_bots">[
+        "robot0", "robot1"
+        ]</rosparam>
+
+        <rosparam param="/namespace_mux/subscribed_topics">[
+        "/map_store_map",
+        "/odom", 
+        "/laser/merged",
+        "/laser/scan_back",
+        "/laser/scan_front",
+        "/move_base/local_costmap/obstacle_layer_footprint/footprint_stamped",
+        "/move_base/TrajectoryPlannerROS/local_plan",
+        "/move_base/local_costmap/costmap",
+        "/move_base/TrajectoryPlannerROS/global_plan",
+        "/wormhole_marker",
+        "/waiting_area_marker",
+        "/particlecloud"
+        ]</rosparam>
+
+        <rosparam param="/namespace_mux/published_topics">[
+        "/cmd_vel",
+        "/initialpose",
+        "/move_base_simple/goal",
+        "/clicked_point"
+        ]</rosparam>
+
+    </node>
+
+    <!-- Setup Fake Map-Frame ID -->
+    <node name="fake_tf_broadcaster" pkg="namespace_mux" type="fake_tf_broadcaster" output="screen">
+
+        <rosparam param="/fake_tf_broadcaster/pub_freq">50</rosparam>
+        <rosparam param="/fake_tf_broadcaster/input_curr_frame_ids">["robot0/map"]</rosparam>
+        <rosparam param="/fake_tf_broadcaster/output_fake_frame_ids">["rviz/map"]</rosparam>
+        <rosparam param="/fake_tf_broadcaster/output_tf_offset">[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]</rosparam>    
+
+    </node>
+    
+</launch>
